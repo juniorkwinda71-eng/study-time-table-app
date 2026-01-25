@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Study Timetable</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1976d2">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="card">
+
+  <h1>Study Timetable</h1>
+
+  <div class="student-info">
+    <input id="name" placeholder="Name">
+    <input id="surname" placeholder="Surname">
+    <input id="grade" placeholder="Grade">
+    <button onclick="saveStudent()">Save Info</button>
+  </div>
+
+  <div class="notes-section">
+    <h3>Notes</h3>
+    <textarea id="notes" placeholder="Write notes here..."></textarea>
+    <button onclick="saveNotes()">Save Notes</button>
+  </div>
+
+  <div class="calendar-box">
+    <h3>2026 South Africa Calendar</h3>
+    <img src="sa-calendar-2026.png">
+  </div>
+
+  <hr>
+
+  <div class="inputs">
+    <input id="subject" placeholder="Subject">
+    <select id="day">
+      <option>Monday</option>
+      <option>Tuesday</option>
+      <option>Wednesday</option>
+      <option>Thursday</option>
+      <option>Friday</option>
+    </select>
+    <input id="time" placeholder="Time (e.g. 14:00-15:00)">
+    <button onclick="addEntry()">Add</button>
+  </div>
+
+  <h3>Weekly Timetable</h3>
+  <table id="timetable">
+    <tr>
+      <th>Time</th>
+      <th>Monday</th>
+      <th>Tuesday</th>
+      <th>Wednesday</th>
+      <th>Thursday</th>
+      <th>Friday</th>
+    </tr>
+  </table>
+
+  <br>
+  <button onclick="printTable()">Print / Export</button>
+
+</div>
+
+<script>
+let entries = [];
+
+window.onload = function () {
+  entries = JSON.parse(localStorage.getItem("entries")) || [];
+  name.value = localStorage.getItem("name") || "";
+  surname.value = localStorage.getItem("surname") || "";
+  grade.value = localStorage.getItem("grade") || "";
+  notes.value = localStorage.getItem("notes") || "";
+  renderTable();
+};
+
+function saveStudent() {
+  localStorage.setItem("name", name.value);
+  localStorage.setItem("surname", surname.value);
+  localStorage.setItem("grade", grade.value);
+  alert("Student info saved");
+}
+
+function saveNotes() {
+  localStorage.setItem("notes", notes.value);
+  alert("Notes saved");
+}
+
+function addEntry() {
+  if (!subject.value || !time.value) {
+    alert("Fill all fields");
+    return;
+  }
+  entries.push({ subject: subject.value, day: day.value, time: time.value });
+  save();
+  renderTable();
+  subject.value = "";
+  time.value = "";
+}
+
+function renderTable() {
+  timetable.innerHTML = `
+    <tr>
+      <th>Time</th>
+      <th>Monday</th>
+      <th>Tuesday</th>
+      <th>Wednesday</th>
+      <th>Thursday</th>
+      <th>Friday</th>
+    </tr>
+  `;
+
+  let times = [...new Set(entries.map(e => e.time))];
+
+  times.forEach(t => {
+    let row = timetable.insertRow();
+    row.insertCell().innerText = t;
+
+    ["Monday","Tuesday","Wednesday","Thursday","Friday"].forEach(d => {
+      let cell = row.insertCell();
+      let e = entries.find(x => x.time === t && x.day === d);
+      if (e) {
+        cell.innerHTML = `
+          ${e.subject}<br>
+          <button onclick="editEntry('${t}','${d}')">Edit</button>
+          <button onclick="deleteEntry('${t}','${d}')">Delete</button>
+        `;
+      }
+    });
+  });
+}
+
+function editEntry(t, d) {
+  let e = entries.find(x => x.time === t && x.day === d);
+  let n = prompt("Edit subject:", e.subject);
+  if (n) {
+    e.subject = n;
+    save(); renderTable();
+  }
+}
+
+function deleteEntry(t, d) {
+  if (!confirm("Delete this entry?")) return;
+  entries = entries.filter(x => !(x.time === t && x.day === d));
+  save(); renderTable();
+}
+
+function save() {
+  localStorage.setItem("entries", JSON.stringify(entries));
+}
+
+function printTable() {
+  window.print();
+}
+
+/* SERVICE WORKER */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+
+</body>
+</html>
