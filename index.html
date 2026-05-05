@@ -1,167 +1,760 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Study Timetable</title>
+bash
 
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1976d2">
+cat > /home/claude/build_excel_guide.js << 'JSEOF'
+const {
+  Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+  HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType,
+  VerticalAlign, PageNumber, PageBreak, LevelFormat, UnderlineType,
+  Header, Footer
+} = require('docx');
+const fs = require('fs');
 
-  <link rel="stylesheet" href="style.css">
-</head>
-
-<body>
-
-<div class="card">
-
-  <h1>Study Timetable</h1>
-
-  <div class="student-info">
-    <input id="name" placeholder="Name">
-    <input id="surname" placeholder="Surname">
-    <input id="grade" placeholder="Grade">
-    <button onclick="saveStudent()">Save Info</button>
-  </div>
-
-  <div class="notes-section">
-    <h3>Notes</h3>
-    <textarea id="notes" placeholder="Write notes here..."></textarea>
-    <button onclick="saveNotes()">Save Notes</button>
-  </div>
-
-  <div class="calendar-box">
-    <h3>2026 South Africa Calendar</h3>
-    <img src="sa-calendar-2026.png">
-  </div>
-
-  <hr>
-
-  <div class="inputs">
-    <input id="subject" placeholder="Subject">
-    <select id="day">
-      <option>Monday</option>
-      <option>Tuesday</option>
-      <option>Wednesday</option>
-      <option>Thursday</option>
-      <option>Friday</option>
-    </select>
-    <input id="time" placeholder="Time (e.g. 14:00-15:00)">
-    <button onclick="addEntry()">Add</button>
-  </div>
-
-  <h3>Weekly Timetable</h3>
-  <table id="timetable">
-    <tr>
-      <th>Time</th>
-      <th>Monday</th>
-      <th>Tuesday</th>
-      <th>Wednesday</th>
-      <th>Thursday</th>
-      <th>Friday</th>
-    </tr>
-  </table>
-
-  <br>
-  <button onclick="printTable()">Print / Export</button>
-
-</div>
-
-<script>
-let entries = [];
-
-window.onload = function () {
-  entries = JSON.parse(localStorage.getItem("entries")) || [];
-  name.value = localStorage.getItem("name") || "";
-  surname.value = localStorage.getItem("surname") || "";
-  grade.value = localStorage.getItem("grade") || "";
-  notes.value = localStorage.getItem("notes") || "";
-  renderTable();
+// ── Colours ──────────────────────────────────────────────────────────────────
+const C = {
+  DARK_BLUE:  "1F4E79", MID_BLUE:  "2E75B6", PALE_BLUE: "BDD7EE",
+  LIGHT_BLUE: "DEEAF1", DARK_GREEN:"375623",  MID_GREEN: "70AD47",
+  LIGHT_GREEN:"E2EFDA", ORANGE:    "843C0C",  LIGHT_ORG: "FCE4D6",
+  PURPLE:     "7030A0", LIGHT_PUR: "E8D5F5",  WHITE:     "FFFFFF",
+  LGREY:      "F2F2F2", MGREY:     "D9D9D9",  BLACK:     "000000",
+  YELLOW:     "FFF2CC", DARK_YEL:  "7F6000",  RED:       "C00000",
 };
 
-function saveStudent() {
-  localStorage.setItem("name", name.value);
-  localStorage.setItem("surname", surname.value);
-  localStorage.setItem("grade", grade.value);
-  alert("Student info saved");
-}
+// ── Border helpers ────────────────────────────────────────────────────────────
+const bdr  = (c="9DC3E6", sz=4)  => ({ style: BorderStyle.SINGLE, size: sz, color: c });
+const bdrT = (c="2E75B6", sz=8)  => ({ style: BorderStyle.SINGLE, size: sz, color: c });
+const allB = (b) => ({ top:b, bottom:b, left:b, right:b });
+const noBorder = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+const noB  = allB(noBorder);
 
-function saveNotes() {
-  localStorage.setItem("notes", notes.value);
-  alert("Notes saved");
-}
+const CM = { top:80, bottom:80, left:140, right:140 };
+const CMW = { top:100, bottom:100, left:160, right:160 };
 
-function addEntry() {
-  if (!subject.value || !time.value) {
-    alert("Fill all fields");
-    return;
-  }
-  entries.push({ subject: subject.value, day: day.value, time: time.value });
-  save();
-  renderTable();
-  subject.value = "";
-  time.value = "";
-}
-
-function renderTable() {
-  timetable.innerHTML = `
-    <tr>
-      <th>Time</th>
-      <th>Monday</th>
-      <th>Tuesday</th>
-      <th>Wednesday</th>
-      <th>Thursday</th>
-      <th>Friday</th>
-    </tr>
-  `;
-
-  let times = [...new Set(entries.map(e => e.time))];
-
-  times.forEach(t => {
-    let row = timetable.insertRow();
-    row.insertCell().innerText = t;
-
-    ["Monday","Tuesday","Wednesday","Thursday","Friday"].forEach(d => {
-      let cell = row.insertCell();
-      let e = entries.find(x => x.time === t && x.day === d);
-      if (e) {
-        cell.innerHTML = `
-          ${e.subject}<br>
-          <button onclick="editEntry('${t}','${d}')">Edit</button>
-          <button onclick="deleteEntry('${t}','${d}')">Delete</button>
-        `;
-      }
-    });
+// ── Cell builders ─────────────────────────────────────────────────────────────
+function hCell(text, bg=C.DARK_BLUE, w=2000, sz=20) {
+  return new TableCell({
+    borders: allB(bdrT(C.MID_BLUE)),
+    shading:{ fill:bg, type:ShadingType.CLEAR },
+    margins: CM, width:{ size:w, type:WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    children:[new Paragraph({ alignment:AlignmentType.CENTER,
+      children:[new TextRun({ text, bold:true, color:C.WHITE, size:sz, font:"Calibri" })]
+    })]
   });
 }
 
-function editEntry(t, d) {
-  let e = entries.find(x => x.time === t && x.day === d);
-  let n = prompt("Edit subject:", e.subject);
-  if (n) {
-    e.subject = n;
-    save(); renderTable();
-  }
+function dCell(text, bg=C.WHITE, w=2000, bold=false, color=C.BLACK, sz=18, align=AlignmentType.LEFT) {
+  return new TableCell({
+    borders: allB(bdr()),
+    shading:{ fill:bg, type:ShadingType.CLEAR },
+    margins: CM, width:{ size:w, type:WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    children:[new Paragraph({ alignment:align,
+      children:[new TextRun({ text:String(text??''), bold, color, size:sz, font:"Calibri" })]
+    })]
+  });
 }
 
-function deleteEntry(t, d) {
-  if (!confirm("Delete this entry?")) return;
-  entries = entries.filter(x => !(x.time === t && x.day === d));
-  save(); renderTable();
+function dCellCode(text, bg=C.LIGHT_PUR, w=4000) {
+  return new TableCell({
+    borders: allB(bdr(C.PURPLE)),
+    shading:{ fill:bg, type:ShadingType.CLEAR },
+    margins: CM, width:{ size:w, type:WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    children:[new Paragraph({
+      children:[new TextRun({ text:String(text), bold:true, color:C.PURPLE, size:18, font:"Courier New" })]
+    })]
+  });
 }
 
-function save() {
-  localStorage.setItem("entries", JSON.stringify(entries));
+// ── Paragraph builders ────────────────────────────────────────────────────────
+const sp = (b=60,a=60) => ({ before:b, after:a });
+
+function H1(text) {
+  return new Paragraph({ heading:HeadingLevel.HEADING_1, spacing:sp(300,120),
+    children:[new TextRun({ text, bold:true, size:30, color:C.DARK_BLUE, font:"Calibri" })]
+  });
+}
+function H2(text) {
+  return new Paragraph({ heading:HeadingLevel.HEADING_2, spacing:sp(240,100),
+    children:[new TextRun({ text, bold:true, size:26, color:C.MID_BLUE, font:"Calibri" })]
+  });
+}
+function H3(text) {
+  return new Paragraph({ spacing:sp(180,80),
+    children:[new TextRun({ text, bold:true, size:22, color:C.ORANGE, font:"Calibri",
+      underline:{ type:UnderlineType.SINGLE } })]
+  });
+}
+function P(text, bold=false, sz=20, color=C.BLACK) {
+  return new Paragraph({ spacing:sp(50,50),
+    children:[new TextRun({ text, bold, size:sz, color, font:"Calibri" })]
+  });
+}
+function B(text, ref="b1") {
+  return new Paragraph({ numbering:{ reference:ref, level:0 }, spacing:sp(30,30),
+    children:[new TextRun({ text, size:18, font:"Calibri" })]
+  });
+}
+function N(text, ref="n1") {
+  return new Paragraph({ numbering:{ reference:ref, level:0 }, spacing:sp(30,30),
+    children:[new TextRun({ text, size:18, font:"Calibri" })]
+  });
+}
+function CODE(text) {
+  return new Paragraph({ spacing:sp(60,60), indent:{ left:720 },
+    children:[new TextRun({ text, font:"Courier New", size:18, color:C.PURPLE, bold:true })]
+  });
+}
+function NOTE(text) {
+  return new Paragraph({ spacing:sp(80,80), indent:{ left:360 },
+    children:[
+      new TextRun({ text:"📌 NOTE: ", bold:true, size:18, color:C.ORANGE, font:"Calibri" }),
+      new TextRun({ text, size:18, color:C.ORANGE, font:"Calibri" })
+    ]
+  });
+}
+function TIP(text) {
+  return new Paragraph({ spacing:sp(80,80), indent:{ left:360 },
+    children:[
+      new TextRun({ text:"✅ TIP: ", bold:true, size:18, color:C.DARK_GREEN, font:"Calibri" }),
+      new TextRun({ text, size:18, color:C.DARK_GREEN, font:"Calibri" })
+    ]
+  });
+}
+function WARN(text) {
+  return new Paragraph({ spacing:sp(80,80), indent:{ left:360 },
+    children:[
+      new TextRun({ text:"⚠️ WARNING: ", bold:true, size:18, color:C.RED, font:"Calibri" }),
+      new TextRun({ text, size:18, color:C.RED, font:"Calibri" })
+    ]
+  });
+}
+function SPACE() { return new Paragraph({ spacing:sp(80,80), children:[new TextRun("")] }); }
+
+function BANNER(text, bg=C.DARK_BLUE) {
+  return new Table({ width:{ size:9360, type:WidthType.DXA }, columnWidths:[9360],
+    rows:[new TableRow({ children:[new TableCell({
+      borders: allB(bdrT(bg)), shading:{ fill:bg, type:ShadingType.CLEAR },
+      margins:{ top:160, bottom:160, left:300, right:300 },
+      children:[new Paragraph({ alignment:AlignmentType.CENTER,
+        children:[new TextRun({ text, bold:true, color:C.WHITE, size:28, font:"Calibri" })]
+      })]
+    })]})],
+  });
 }
 
-function printTable() {
-  window.print();
+function STEP(num, text) {
+  return new Paragraph({ spacing:sp(80,60),
+    children:[
+      new TextRun({ text:`  STEP ${num}  `, bold:true, color:C.WHITE,
+        shading:{ type:ShadingType.CLEAR, fill:C.MID_BLUE }, size:20, font:"Calibri",
+        highlight:"darkBlue" }),
+      new TextRun({ text:`   ${text}`, bold:true, size:20, color:C.DARK_BLUE, font:"Calibri" })
+    ]
+  });
 }
 
-/* SERVICE WORKER */
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js");
+function simpleTable(headers, rows, hBg=C.DARK_BLUE, widths=null) {
+  const cols = headers.length;
+  const w = widths || Array(cols).fill(Math.floor(9360/cols));
+  return new Table({
+    width:{ size:9360, type:WidthType.DXA }, columnWidths:w,
+    rows:[
+      new TableRow({ children: headers.map((h,i)=>hCell(h, hBg, w[i])) }),
+      ...rows.map((row,ri)=>new TableRow({ children:
+        row.map((v,ci)=>dCell(String(v??''), ri%2===0?C.WHITE:C.LGREY, w[ci],
+          ci===0&&typeof v==='string'&&v.length<30))
+      }))
+    ]
+  });
 }
-</script>
 
-</body>
-</html>
+// ════════════════════════════════════════════════════════════════════════════
+const children = [];
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── COVER ────────────────────────────────────────────────────────────────────
+children.push(
+  new Table({ width:{ size:9360, type:WidthType.DXA }, columnWidths:[9360],
+    rows:[new TableRow({ children:[new TableCell({
+      borders:allB(bdrT(C.DARK_BLUE,12)), shading:{ fill:C.DARK_BLUE, type:ShadingType.CLEAR },
+      margins:{ top:500, bottom:500, left:500, right:500 },
+      children:[
+        new Paragraph({ alignment:AlignmentType.CENTER, spacing:sp(0,80),
+          children:[new TextRun({ text:"GRADE 12 CAT PAT – 2026", bold:true, color:C.WHITE, size:36, font:"Calibri" })]
+        }),
+        new Paragraph({ alignment:AlignmentType.CENTER, spacing:sp(0,80),
+          children:[new TextRun({ text:"Microsoft Excel Spreadsheet", bold:true, color:C.PALE_BLUE, size:30, font:"Calibri" })]
+        }),
+        new Paragraph({ alignment:AlignmentType.CENTER, spacing:sp(0,80),
+          children:[new TextRun({ text:"Complete Step-by-Step Setup Guide", color:C.PALE_BLUE, size:26, font:"Calibri" })]
+        }),
+        new Paragraph({ alignment:AlignmentType.CENTER, spacing:sp(80,0),
+          children:[new TextRun({ text:"Water as a Vital Resource in South Africa", color:C.LIGHT_GREEN, size:24, font:"Calibri" })]
+        }),
+        new Paragraph({ alignment:AlignmentType.CENTER, spacing:sp(80,0),
+          children:[new TextRun({ text:"Junior Kwinda  |  Grade 12  |  2026", bold:true, color:C.YELLOW, size:22, font:"Calibri" })]
+        }),
+      ]
+    })]})],
+  }),
+  SPACE(), SPACE(),
+);
+
+// ── INTRO ─────────────────────────────────────────────────────────────────────
+children.push(
+  H1("Introduction – What This Guide Covers"),
+  P("This guide walks you through building your entire Excel spreadsheet for your CAT PAT Phase 2, step by step. Your spreadsheet is about Water as a Vital Resource in South Africa. It uses data collected from 20 questionnaires."),
+  SPACE(),
+  P("Your completed spreadsheet must include:", true),
+  B("3 Worksheets: Raw data, Calculations, Summary & Charts"),
+  B("Correct formatting and layout on all worksheets"),
+  B("At least 2 functions from each of Level 1, 2, 3 and 4"),
+  B("At least 2 graphs/charts that are correct, labelled and easy to read"),
+  B("No formula errors anywhere"),
+  SPACE(),
+  NOTE("Your file must be saved as:  Water resouce.xlsx  inside your Phase 2 → Spreadsheet folder"),
+  SPACE(),
+);
+
+// ── SECTION 1: OPEN EXCEL ────────────────────────────────────────────────────
+children.push(
+  BANNER("SECTION 1: OPENING EXCEL AND SETTING UP YOUR FILE", C.DARK_BLUE), SPACE(),
+  H2("Step 1.1 – Open Microsoft Excel"),
+  N("Press the Windows key on your keyboard"),
+  N("Type Excel and press Enter to open Microsoft Excel"),
+  N("Click Blank Workbook to create a new spreadsheet"),
+  SPACE(),
+  H2("Step 1.2 – Rename Your Worksheets"),
+  P("By default Excel gives you sheets called Sheet1, Sheet2, Sheet3. You must rename them."),
+  SPACE(),
+  N("Right-click on the tab that says Sheet1 at the bottom of the screen"),
+  N("Click Rename from the menu that appears"),
+  N("Type:  Raw data  and press Enter"),
+  N("Right-click Sheet2 → Rename → type:  Calculations  → press Enter"),
+  N("Right-click Sheet3 → Rename → type:  Summary & Charts  → press Enter"),
+  SPACE(),
+  TIP("If you only have 1 sheet tab, click the + button next to the tab to add more sheets"),
+  SPACE(),
+  H2("Step 1.3 – Save Your File"),
+  N("Press Ctrl + S on your keyboard"),
+  N("In the Save As window, navigate to your Phase 2 folder"),
+  N("Create a new folder inside Phase 2 called Spreadsheet"),
+  N("Open that Spreadsheet folder"),
+  N("In the File Name box at the bottom, type:  Water resouce"),
+  N("Make sure the file type says Excel Workbook (.xlsx)"),
+  N("Click Save"),
+  SPACE(),
+  NOTE("Save your work every 10 minutes by pressing Ctrl + S"),
+  SPACE(),
+);
+
+// ── SECTION 2: RAW DATA SHEET ─────────────────────────────────────────────────
+children.push(
+  BANNER("SECTION 2: RAW DATA WORKSHEET", C.MID_BLUE), SPACE(),
+  P("The Raw data sheet is where you type in all the answers from your 20 questionnaires. Think of it like a table in a textbook — each row is one person, each column is one question."),
+  SPACE(),
+  H2("Step 2.1 – Click on the Raw data Sheet"),
+  N("Click the Raw data tab at the bottom of the screen"),
+  SPACE(),
+  H2("Step 2.2 – Add the Title in Row 1"),
+  N("Click on cell A1 (the very first cell, top-left corner)"),
+  N("Type exactly:  Water as a Vital Resource in South Africa – Raw Survey Data"),
+  N("Press Enter"),
+  SPACE(),
+  P("Now make the title look professional:"),
+  N("Click cell A1 again"),
+  N("Hold Shift and click cell J1 (this selects A1 to J1)"),
+  N("On the Home tab at the top, click Merge & Center (it looks like two arrows pointing inward)"),
+  N("With A1:J1 still selected, click the small arrow next to the paint bucket icon (Fill Color)"),
+  N("Choose Dark Blue (it is in the top-right area of the colour palette)"),
+  N("Click the font colour button (A with a colour bar under it) → choose White"),
+  N("Click Bold (B) on the Home tab"),
+  N("Change the font size to 13"),
+  SPACE(),
+  H2("Step 2.3 – Add Column Headers in Row 2"),
+  P("Click on cell A2 and type each header below, pressing Tab to move to the next column:"),
+  SPACE(),
+  simpleTable(
+    ["Column","Cell","Type This Exactly"],
+    [
+      ["Column A","A2","ID"],
+      ["Column B","B2","Gender"],
+      ["Column C","C2","Age"],
+      ["Column D","D2","Occupation"],
+      ["Column E","E2","Water Crisis"],
+      ["Column F","F2","Shortage Frequency"],
+      ["Column G","G2","Concern Level (1-5)"],
+      ["Column H","H2","Household Size"],
+      ["Column I","I2","Water Saving Method 1"],
+      ["Column J","J2","Water Saving Method 2"],
+    ],
+    C.MID_BLUE, [1800, 1200, 6360]
+  ),
+  SPACE(),
+  P("Now format the headers so they stand out:"),
+  N("Click cell A2, hold Shift, click J2 to select the whole header row"),
+  N("Click Fill Color → choose a medium blue colour"),
+  N("Click font colour → choose White"),
+  N("Click Bold (B)"),
+  N("Click the Center alignment button so the text is in the middle"),
+  SPACE(),
+  H2("Step 2.4 – Enter All 20 Records"),
+  P("Starting from row 3, type each respondent's data. Click on A3 first."),
+  SPACE(),
+  NOTE("Press Tab to move right to the next column. Press Enter to go to the next row."),
+  SPACE(),
+  simpleTable(
+    ["ID","Gender","Age","Occupation","Water Crisis","Shortage Frequency","Concern","HH Size","Saving Method 1","Saving Method 2"],
+    [
+      [1,"Female",17,"Student","Yes","Rarely (a few times a year)",5,5,"Taking short showers","Using water tanks"],
+      [2,"Male",18,"Student","Yes","Never",3,5,"Using water tanks","Fixing taps"],
+      [3,"Female",17,"Student","Yes","Rarely (a few times a year)",5,5,"Fixing leaks in taps","Turning off tap always"],
+      [4,"Male",19,"Self-employed","Yes","Sometimes (monthly)",5,4,"Using buckets","Drinking water from fridge"],
+      [5,"Female",17,"Student","Yes","Rarely (a few times a year)",2,5,"Taking short showers","Collecting rain water"],
+      [6,"Male",17,"Student","Yes","Sometimes (monthly)",3,3,"Closing taps always","Taking short showers"],
+      [7,"Male",17,"Student","Unsure","Rarely (a few times a year)",2,5,"Fixing leaks in taps","Taking short showers"],
+      [8,"Female",18,"Student","Yes","Rarely (a few times a year)",3,5,"Use a cup while brushing teeth","Water plants with cans"],
+      [9,"Female",18,"Student","Yes","Never",4,5,"Use less water","Recycle"],
+      [10,"Male",17,"Student","Yes","Never",5,5,"Taking short showers","Use a cup to brush teeth"],
+      [11,"Female",18,"Student","Yes","Never",4,5,"Closing taps always","Taking short showers"],
+      [12,"Female",17,"Student","Yes","Rarely (a few times a year)",3,5,"Using jar for water","Taking short showers"],
+      [13,"Female",17,"Student","Unsure","Never",3,5,"Taking short showers","Fixing taps"],
+      [14,"Female",18,"Student","Yes","Rarely (a few times a year)",4,4,"Fixing leaks in taps","Taking short showers"],
+      [15,"Female",18,"Student","Yes","Never",3,5,"Taking short showers","Using water tanks"],
+      [16,"Male",17,"Self-employed","Yes","Sometimes (monthly)",4,5,"Closing taps always","Taking short showers"],
+      [17,"Male",18,"Student","Unsure","Never",4,3,"Non","Non"],
+      [18,"Male",19,"Self-employed","Yes","Rarely (a few times a year)",4,2,"Non","Non"],
+      [19,"Female",17,"Student","Yes","Sometimes (monthly)",3,4,"Closing taps always","Use less water"],
+      [20,"Male",18,"Student","Yes","Rarely (a few times a year)",5,4,"Taking short showers","Using water tanks"],
+    ],
+    C.DARK_BLUE,
+    [400,700,500,1100,900,1700,800,700,1630,1630]
+  ),
+  SPACE(),
+  H2("Step 2.5 – Format the Raw Data Sheet"),
+  N("Select all your data: click A1, hold Shift, click J22"),
+  N("On the Home tab, click the Borders button (looks like a grid) → click All Borders"),
+  N("Select rows 3 to 22 (click row number 3, hold Shift, click row number 22)"),
+  N("To add alternating row colours: select every even row while holding Ctrl (rows 4, 6, 8... 22)"),
+  N("Click Fill Color → choose a very light blue (called Light Blue 1 or similar)"),
+  SPACE(),
+  P("Adjust column widths so all text fits:"),
+  N("Click the triangle in the very top-left corner (between row numbers and column letters) to select ALL cells"),
+  N("Double-click on any column border in the column letter row at the top — this auto-fits all columns"),
+  SPACE(),
+  TIP("To freeze the header row so it stays visible when you scroll down: click cell A3, then go to View tab → Freeze Panes → Freeze Panes"),
+  SPACE(),
+);
+
+// ── SECTION 3: CALCULATIONS ───────────────────────────────────────────────────
+children.push(
+  BANNER("SECTION 3: CALCULATIONS WORKSHEET", C.DARK_GREEN), SPACE(),
+  P("The Calculations sheet is where you use formulas and functions to analyse your data. This is where you earn marks for Levels 1, 2, 3 and 4 functions."),
+  SPACE(),
+  H2("Step 3.1 – Click on the Calculations Sheet Tab"),
+  N("Click the Calculations tab at the bottom of the screen"),
+  SPACE(),
+  H2("Step 3.2 – Add the Title"),
+  N("Click on cell A1"),
+  N("Type:  Water as a Vital Resource – Data Calculations & Analysis"),
+  N("Select A1 to F1 (click A1, hold Shift, click F1)"),
+  N("Click Merge & Center"),
+  N("Set Fill Color to Dark Blue, Font Color to White, Bold, Font Size 13"),
+  SPACE(),
+  H2("Step 3.3 – Add Column Headers in Row 3"),
+  N("Click cell A3, type:  Description  → press Tab"),
+  N("Type:  Result  → press Tab"),
+  N("Type:  Level  → press Tab → Tab (skip D3)"),
+  N("Click E3, type:  Formula Used  → press Tab"),
+  N("Type:  Expected Answer"),
+  N("Select A3 to F3, apply blue fill, white font, bold, center"),
+  SPACE(),
+  H2("Step 3.4 – Enter All Formulas"),
+  P("Click on cell A4 and start entering the descriptions and formulas. The Result column (B) is where you type the actual formula. Everything else is just labels."),
+  SPACE(),
+  NOTE("All formulas that reference the Raw data sheet must say 'Raw data'! before the cell range — the single quotes are required because the sheet name has a space in it."),
+  SPACE(),
+  BANNER("LEVEL 1 FUNCTIONS – Easy (COUNT, AVERAGE, MAX, MIN, ROUND)", C.MID_BLUE), SPACE(),
+  P("Level 1 functions are the simplest. They do basic calculations like adding, counting or finding the biggest number."),
+  SPACE(),
+  simpleTable(
+    ["Row","Cell A – Description","Cell B – Formula to Type","Cell C – Level","Answer"],
+    [
+      ["Row 4","Total Respondents","=COUNT('Raw data'!A3:A22)","Level 1","20"],
+      ["Row 5","Average Age of Respondents","=ROUND(AVERAGE('Raw data'!C3:C22),1)","Level 1","17.8"],
+      ["Row 6","Oldest Respondent Age","=MAX('Raw data'!C3:C22)","Level 1","19"],
+      ["Row 7","Youngest Respondent Age","=MIN('Raw data'!C3:C22)","Level 1","17"],
+      ["Row 8","Average Household Size","=ROUND(AVERAGE('Raw data'!H3:H22),1)","Level 1","4.4"],
+      ["Row 9","Average Concern Level","=ROUND(AVERAGE('Raw data'!G3:G22),1)","Level 1","3.6"],
+    ],
+    C.MID_BLUE, [700,2800,3200,1100,960]
+  ),
+  SPACE(),
+  P("How to type formula in Row 4 – example:"),
+  N("Click on cell B4"),
+  N("Type:  =COUNT('Raw data'!A3:A22)"),
+  N("Press Enter — you should see 20 appear"),
+  N("Click B4 again, type the level in C4:  Level 1"),
+  N("In E4 type the formula text as a label (without =):  COUNT('Raw data'!A3:A22)"),
+  N("In F4 type:  20"),
+  N("Repeat this process for rows 5 to 9 using the table above"),
+  SPACE(),
+  P("Explanation of formulas:"),
+  B("=COUNT('Raw data'!A3:A22) — counts how many cells have a number in column A of Raw data sheet. Result: 20"),
+  B("=ROUND(AVERAGE('Raw data'!C3:C22),1) — finds the average age and rounds it to 1 decimal place. Result: 17.8"),
+  B("=MAX('Raw data'!C3:C22) — finds the highest age. Result: 19"),
+  B("=MIN('Raw data'!C3:C22) — finds the lowest age. Result: 17"),
+  B("=ROUND(AVERAGE('Raw data'!H3:H22),1) — finds average household size rounded to 1 decimal. Result: 4.4"),
+  B("=ROUND(AVERAGE('Raw data'!G3:G22),1) — finds average concern level. Result: 3.6"),
+  SPACE(),
+  BANNER("LEVEL 2 FUNCTIONS – Medium (COUNTIF)", C.ORANGE), SPACE(),
+  P("COUNTIF counts cells that match a specific condition. It has 2 parts: the range to look in, and the condition to match."),
+  P("Format:  =COUNTIF(range, condition)"),
+  SPACE(),
+  simpleTable(
+    ["Row","Cell A – Description","Cell B – Formula to Type","Cell C – Level","Answer"],
+    [
+      ["Row 10","Respondents – Water Crisis = Yes","=COUNTIF('Raw data'!E3:E22,\"Yes\")","Level 2","17"],
+      ["Row 11","Respondents – Water Crisis = Unsure","=COUNTIF('Raw data'!E3:E22,\"Unsure\")","Level 2","3"],
+      ["Row 12","Shortage Frequency = Never","=COUNTIF('Raw data'!F3:F22,\"Never\")","Level 2","6"],
+      ["Row 13","Shortage Frequency = Rarely","=COUNTIF('Raw data'!F3:F22,\"Rarely*\")","Level 2","10"],
+      ["Row 14","Shortage Frequency = Sometimes","=COUNTIF('Raw data'!F3:F22,\"Sometimes*\")","Level 2","4"],
+      ["Row 15","High Concern (Level 4 or 5)","=COUNTIF('Raw data'!G3:G22,\">=4\")","Level 2","11"],
+      ["Row 16","Low Concern (Level 1 or 2)","=COUNTIF('Raw data'!G3:G22,\"<=2\")","Level 2","2"],
+    ],
+    C.ORANGE, [700,2800,3200,1100,760]
+  ),
+  SPACE(),
+  P("How to type Row 10 – example:"),
+  N("Click on cell B10"),
+  N('Type:  =COUNTIF(\'Raw data\'!E3:E22,"Yes")'),
+  N("Press Enter — you should see 17"),
+  SPACE(),
+  P("Explanation of Level 2 formulas:"),
+  B('=COUNTIF(\'Raw data\'!E3:E22,"Yes") — looks in column E of Raw data sheet and counts every cell that says Yes. Result: 17'),
+  B('=COUNTIF(\'Raw data\'!F3:F22,"Rarely*") — the * wildcard means it will also match "Rarely (a few times a year)". Result: 10'),
+  B('=COUNTIF(\'Raw data\'!G3:G22,">=4") — counts all cells in column G that are 4 or higher. Result: 11'),
+  SPACE(),
+  BANNER("LEVEL 3 FUNCTIONS – Advanced (COUNTIFS, IF)", C.PURPLE), SPACE(),
+  P("Level 3 functions use multiple conditions or logical decisions. COUNTIFS counts cells that match TWO or more conditions at the same time."),
+  P("Format:  =COUNTIFS(range1, condition1, range2, condition2)"),
+  SPACE(),
+  simpleTable(
+    ["Row","Cell A – Description","Cell B – Formula to Type","Cell C – Level","Answer"],
+    [
+      ["Row 17","Yes & High Concern (Level 4+)","=COUNTIFS('Raw data'!E3:E22,\"Yes\",'Raw data'!G3:G22,\">=4\")","Level 3","11"],
+      ["Row 18","Large Household (>4 people) & Yes","=COUNTIFS('Raw data'!H3:H22,\">4\",'Raw data'!E3:E22,\"Yes\")","Level 3","8"],
+    ],
+    C.PURPLE, [700,2800,3200,1100,760]
+  ),
+  SPACE(),
+  P("How to type Row 17 – example:"),
+  N("Click on cell B17"),
+  N('Type:  =COUNTIFS(\'Raw data\'!E3:E22,"Yes",\'Raw data\'!G3:G22,">=4")'),
+  N("Press Enter — you should see 11"),
+  SPACE(),
+  P("Explanation:"),
+  B("=COUNTIFS checks TWO conditions: the person must have answered Yes to water crisis AND have a concern level of 4 or higher. Both must be true for it to count. Result: 11"),
+  B("Row 18 checks: household size must be more than 4 AND water crisis answer must be Yes. Result: 8"),
+  SPACE(),
+  P("Now add a simple IF function:"),
+  simpleTable(
+    ["Row","Cell A – Description","Cell B – Formula to Type","Cell C – Level","Answer"],
+    [
+      ["Row 19","Concern Category (High/Low)","=IF(ROUND(AVERAGE('Raw data'!G3:G22),1)>=4,\"High Concern\",IF(ROUND(AVERAGE('Raw data'!G3:G22),1)>=3,\"Moderate Concern\",\"Low Concern\"))","Level 3","Moderate Concern"],
+    ],
+    C.PURPLE, [700,2100,4200,1000,1260]
+  ),
+  SPACE(),
+  P("This IF formula says: if the average concern is 4 or above, show High Concern. If it is 3 or above, show Moderate Concern. Otherwise show Low Concern. Result: Moderate Concern"),
+  SPACE(),
+  BANNER("LEVEL 4 FUNCTIONS – Difficult (VLOOKUP, Nested IF)", C.DARK_BLUE), SPACE(),
+  P("Level 4 functions are the hardest. VLOOKUP searches for a value in a table and returns matching information from another column."),
+  P("Format:  =VLOOKUP(value to find, table range, column number to return, FALSE)"),
+  SPACE(),
+  simpleTable(
+    ["Row","Cell A – Description","Cell B – Formula to Type","Cell C – Level","Answer"],
+    [
+      ["Row 20","VLOOKUP – Concern Level of ID 1","=VLOOKUP(1,'Raw data'!A3:J22,7,FALSE)","Level 4","5"],
+      ["Row 21","VLOOKUP – Household Size of ID 5","=VLOOKUP(5,'Raw data'!A3:J22,8,FALSE)","Level 4","5"],
+      ["Row 22","Nested IF – Age Group","=IF(MAX('Raw data'!C3:C22)>=19,\"Includes 19-year-olds\",IF(MAX('Raw data'!C3:C22)>=18,\"Max Age is 18\",\"All Under 18\"))","Level 4","Includes 19-year-olds"],
+    ],
+    C.DARK_BLUE, [700,2500,3600,1000,1260]
+  ),
+  SPACE(),
+  P("How VLOOKUP works – Row 20 example:"),
+  N("Click on cell B20"),
+  N("Type:  =VLOOKUP(1,'Raw data'!A3:J22,7,FALSE)"),
+  N("Press Enter — you should see 5"),
+  SPACE(),
+  P("Breaking down the VLOOKUP formula:"),
+  B("1 — this is the ID we are looking for (Respondent 1)"),
+  B("'Raw data'!A3:J22 — this is the table to search in (all data on Raw data sheet)"),
+  B("7 — return the value from the 7th column, which is Concern Level"),
+  B("FALSE — find an exact match only"),
+  SPACE(),
+  P("How to type the Nested IF in Row 22:"),
+  N("Click B22"),
+  N('Type: =IF(MAX(\'Raw data\'!C3:C22)>=19,"Includes 19-year-olds",IF(MAX(\'Raw data\'!C3:C22)>=18,"Max Age is 18","All Under 18"))'),
+  N("Press Enter — result: Includes 19-year-olds"),
+  SPACE(),
+  H2("Step 3.5 – Format the Calculations Sheet"),
+  N("Select A3 to F22"),
+  N("Apply All Borders (Home tab → Borders dropdown → All Borders)"),
+  N("Select all rows from row 4 downward — apply alternating fill colours (white and light grey)"),
+  N("Make column A wider by double-clicking the border between column A and B in the header row"),
+  N("Make column B wider so formulas are visible — drag the column border to the right"),
+  SPACE(),
+  TIP("You can colour-code the level rows: Level 1 rows = light blue, Level 2 = light orange, Level 3 = light purple, Level 4 = light yellow. This makes it very clear to your educator."),
+  SPACE(),
+);
+
+// ── SECTION 4: SUMMARY & CHARTS ──────────────────────────────────────────────
+children.push(
+  BANNER("SECTION 4: SUMMARY & CHARTS WORKSHEET", C.DARK_GREEN), SPACE(),
+  P("This sheet has your summary data tables and all your charts/graphs. The charts must be large, clearly labelled and easy to read."),
+  SPACE(),
+  H2("Step 4.1 – Click on Summary & Charts Tab"),
+  N("Click the Summary & Charts tab at the bottom of the screen"),
+  SPACE(),
+  H2("Step 4.2 – Add the Page Title"),
+  N("Click cell B1"),
+  N("Type:  Water as a Vital Resource in South Africa – Summary & Charts"),
+  N("Select B1 to J1 → Merge & Center → Dark Blue fill → White font → Bold → Size 14"),
+  SPACE(),
+  H2("Step 4.3 – Create Table 1: Water Crisis Awareness (Rows 3–6)"),
+  N("Click cell B3, type:  Q: Does South Africa Have a Water Crisis?  → press Tab"),
+  N("Type:  No. of Respondents"),
+  N("Select B3 and C3 → apply Dark Blue fill, White font, Bold, Center"),
+  SPACE(),
+  N("Click B4, type:  Yes – South Africa has a water crisis  → press Tab → type:  17"),
+  N("Click B5, type:  Unsure – Not sure if there is a crisis  → press Tab → type:  3"),
+  N("Click B6, type:  TOTAL  → press Tab → type:  20"),
+  N("Make the TOTAL row bold with a slightly darker background"),
+  SPACE(),
+  H2("Step 4.4 – Create Chart 1: Pie Chart – Water Crisis Awareness"),
+  N("Select cells B3 to C5 (the table headers and data rows — NOT the TOTAL row)"),
+  N("Click the Insert tab at the top of the screen"),
+  N("Click the Pie Chart button (it looks like a circle divided into slices)"),
+  N("Click the first option: 2-D Pie (the plain round pie chart — NOT the 3D one)"),
+  N("A chart will appear on your sheet — click and drag it so it sits to the RIGHT of your table, starting at column E"),
+  SPACE(),
+  P("Now format the chart — click on it once to select it:"),
+  N("Click the Chart Title text at the top of the chart → click it again → delete the existing text → type:  Water Crisis Awareness (% of 20 Respondents)"),
+  N("Click somewhere outside the title box to confirm"),
+  N("Right-click on the pie slices → click Add Data Labels"),
+  N("Right-click the data labels → Format Data Labels"),
+  N("In the panel on the right, tick: Percentage and Category Name. Untick: Value"),
+  N("Click the X to close the panel"),
+  N("Resize the chart: drag the corner handles to make it bigger — about 10 cm wide and 8 cm tall"),
+  SPACE(),
+  TIP("Your pie chart should show two slices with labels like: Yes – South Africa has a water crisis 85% and Unsure 15%"),
+  SPACE(),
+  H2("Step 4.5 – Create Table 2: Shortage Frequency (Rows 9–13)"),
+  N("Leave row 7 and 8 empty as spacing"),
+  N("Click B9, type:  Q: How Often Do You Experience Water Shortages?  → Tab → type:  No. of Respondents"),
+  N("Format B9 and C9: Blue fill, White font, Bold, Center"),
+  N("Click B10, type:  Never – No shortage experienced  → Tab → type:  6"),
+  N("Click B11, type:  Rarely – A few times per year  → Tab → type:  10"),
+  N("Click B12, type:  Sometimes – Water shortage monthly  → Tab → type:  4"),
+  N("Click B13, type:  TOTAL  → Tab → type:  20"),
+  SPACE(),
+  H2("Step 4.6 – Create Chart 2: Column Bar Chart – Shortage Frequency"),
+  N("Select B9 to C12 (headers + 3 data rows — NOT the TOTAL row)"),
+  N("Click Insert tab → click the Bar/Column Chart button (looks like upward bars)"),
+  N("Click Clustered Column (the first 2-D column option — simple upward bars, NOT 3D)"),
+  N("A chart appears — drag it so it sits to the right of Table 2, starting at column E row 9"),
+  SPACE(),
+  P("Format the chart:"),
+  N("Click Chart Title → delete it → type:  How Often Do Respondents Experience Water Shortages?"),
+  N("Click the + button on the right side of the chart → tick Axis Titles"),
+  N("Click the vertical axis title (left side) → type:  Number of Respondents"),
+  N("Click the horizontal axis title (bottom) → type:  Frequency of Water Shortage"),
+  N("Click the + button → tick Data Labels — numbers will appear on top of each bar"),
+  N("Resize the chart to be about 12 cm wide and 9 cm tall"),
+  SPACE(),
+  TIP("Your bar chart should show 3 bars: Never (6), Rarely (10), Sometimes (4). The Rarely bar should be the tallest."),
+  SPACE(),
+  H2("Step 4.7 – Create Table 3: Concern Level (Rows 16–23)"),
+  N("Leave rows 14 and 15 empty"),
+  N("Click B16, type:  Q: How Concerned Are You About Water Scarcity? (1=Low, 5=High)  → Tab → type:  No. of Respondents"),
+  N("Format B16 and C16: Dark Green fill, White font, Bold, Center"),
+  N("Enter the following data:"),
+  SPACE(),
+  simpleTable(
+    ["Cell","Type This","Tab","Cell","Type This Number"],
+    [
+      ["B17","Level 1 – Not at all concerned","→","C17","0"],
+      ["B18","Level 2 – Slightly concerned","→","C18","2"],
+      ["B19","Level 3 – Moderately concerned","→","C19","7"],
+      ["B20","Level 4 – Very concerned","→","C20","6"],
+      ["B21","Level 5 – Extremely concerned","→","C21","5"],
+      ["B22","TOTAL","→","C22","20"],
+    ],
+    C.DARK_GREEN, [1500,3000,600,1500,2760]
+  ),
+  SPACE(),
+  H2("Step 4.8 – Create Chart 3: Column Bar Chart – Concern Level"),
+  N("Select B16 to C21 (headers + 5 data rows, NOT the TOTAL row)"),
+  N("Click Insert → Clustered Column (same as before)"),
+  N("Drag the chart to the right of Table 3, starting at column E row 16"),
+  N("Click Chart Title → type:  Respondents Level of Concern About Water Scarcity"),
+  N("Add axis titles: vertical = Number of Respondents, horizontal = Concern Level (1=Low to 5=High)"),
+  N("Add Data Labels by clicking the + button and ticking Data Labels"),
+  N("Resize to match the other charts"),
+  SPACE(),
+  H2("Step 4.9 – Create Table 4: Household Size (Rows 25–31)"),
+  N("Leave rows 23 and 24 empty"),
+  N("Click B25, type:  Q: Household Size Distribution  → Tab → type:  No. of Respondents"),
+  N("Format B25 and C25: Dark orange/brown fill, White font, Bold, Center"),
+  N("Enter the data:"),
+  SPACE(),
+  simpleTable(
+    ["Cell","Type This","Cell","Number"],
+    [
+      ["B26","2 people per household","C26","1"],
+      ["B27","3 people per household","C27","2"],
+      ["B28","4 people per household","C28","4"],
+      ["B29","5 people per household","C29","13"],
+      ["B30","TOTAL","C30","20"],
+    ],
+    C.ORANGE, [2000,3000,1500,2860]
+  ),
+  SPACE(),
+  H2("Step 4.10 – Create Chart 4: Column Bar Chart – Household Size"),
+  N("Select B25 to C29 (headers + 4 data rows, NOT the TOTAL)"),
+  N("Click Insert → Clustered Column"),
+  N("Drag chart to the right of Table 4, starting at column E row 25"),
+  N("Title:  Household Size Distribution Among Respondents"),
+  N("Vertical axis:  Number of Respondents"),
+  N("Horizontal axis:  Number of People in Household"),
+  N("Add Data Labels"),
+  SPACE(),
+  TIP("The tallest bar should be 5 people per household (13 respondents). If it is not, check your data in Table 4."),
+  SPACE(),
+);
+
+// ── SECTION 5: GENERAL FORMATTING ────────────────────────────────────────────
+children.push(
+  BANNER("SECTION 5: GENERAL FORMATTING RULES FOR ALL SHEETS", C.MID_BLUE), SPACE(),
+  P("Apply these formatting rules to ALL three sheets to make your spreadsheet look professional."),
+  SPACE(),
+  simpleTable(
+    ["Formatting Item","What to Do","Where"],
+    [
+      ["Font","Use Calibri or Arial throughout — do NOT mix fonts","All sheets"],
+      ["Font Size","Normal text = 10 or 11pt. Titles = 13 or 14pt","All sheets"],
+      ["Borders","Apply All Borders to all data tables","All sheets"],
+      ["Header rows","Dark blue fill + white bold text","All sheets"],
+      ["Alternating rows","Light blue and white alternating fills","All sheets"],
+      ["Column widths","Auto-fit all columns: select all → double-click border","All sheets"],
+      ["Row heights","Increase row height for headers: right-click row → Row Height → type 25","Header rows"],
+      ["Alignment","Numbers = center aligned. Text = left aligned","All sheets"],
+      ["Tab colours","Right-click tab → Tab Color → choose a different colour per sheet","Sheet tabs"],
+      ["Spelling","Press F7 on any sheet to run spell check","All sheets"],
+    ],
+    C.MID_BLUE, [2200,4560,2600]
+  ),
+  SPACE(),
+);
+
+// ── SECTION 6: SAVING AND FINAL CHECKS ───────────────────────────────────────
+children.push(
+  BANNER("SECTION 6: SAVING AND FINAL CHECKLIST", C.DARK_BLUE), SPACE(),
+  H2("Step 6.1 – Save Your Final File"),
+  N("Press Ctrl + S to save"),
+  N("Make sure the file is saved in:  Phase 2 → Spreadsheet folder"),
+  N("File name must be:  Water resouce.xlsx"),
+  N("File type must be:  Excel Workbook (.xlsx) — NOT .xlsm or .csv"),
+  SPACE(),
+  H2("Step 6.2 – Final Checklist Before Submitting"),
+  SPACE(),
+  simpleTable(
+    ["#","Requirement","Check"],
+    [
+      ["1","File saved as Water resouce.xlsx in Phase 2 → Spreadsheet folder","☐"],
+      ["2","3 sheets: Raw data, Calculations, Summary & Charts","☐"],
+      ["3","Sheet names are exactly correct (capital letters matter)","☐"],
+      ["4","Raw data has a title in row 1 (merged across A1:J1)","☐"],
+      ["5","Raw data has column headers in row 2","☐"],
+      ["6","All 20 records entered correctly in rows 3 to 22","☐"],
+      ["7","All borders applied on Raw data table","☐"],
+      ["8","Calculations sheet has Level 1 functions: COUNT, AVERAGE, MAX, MIN, ROUND","☐"],
+      ["9","Calculations sheet has Level 2 functions: COUNTIF (at least 2 uses)","☐"],
+      ["10","Calculations sheet has Level 3 functions: COUNTIFS and IF","☐"],
+      ["11","Calculations sheet has Level 4 functions: VLOOKUP and Nested IF","☐"],
+      ["12","No formula errors (#REF!, #VALUE!, #NAME?) on any sheet","☐"],
+      ["13","Summary & Charts has 4 data tables with correct numbers","☐"],
+      ["14","Chart 1: Pie chart with title, percentage labels and category labels","☐"],
+      ["15","Chart 2: Column bar chart – shortage frequency with axis titles and data labels","☐"],
+      ["16","Chart 3: Column bar chart – concern level with axis titles and data labels","☐"],
+      ["17","Chart 4: Column bar chart – household size with axis titles and data labels","☐"],
+      ["18","All charts are large enough to read easily","☐"],
+      ["19","All sheets have consistent fonts (Calibri or Arial)","☐"],
+      ["20","No spelling errors on any sheet (press F7 to check)","☐"],
+    ],
+    C.DARK_BLUE, [600,6400,2360]
+  ),
+  SPACE(), SPACE(),
+  new Paragraph({ alignment:AlignmentType.CENTER, spacing:sp(200,200),
+    children:[new TextRun({ text:"– END OF EXCEL GUIDE –", bold:true, size:24, color:C.DARK_BLUE, font:"Calibri" })]
+  }),
+);
+
+// ════════════════════════════════════════════════════════════════════════════
+// BUILD DOCUMENT
+// ════════════════════════════════════════════════════════════════════════════
+const doc = new Document({
+  numbering: {
+    config: [
+      { reference:"b1", levels:[{ level:0, format:LevelFormat.BULLET, text:"•",
+        alignment:AlignmentType.LEFT,
+        style:{ paragraph:{ indent:{ left:720, hanging:360 } } } }] },
+      { reference:"n1", levels:[{ level:0, format:LevelFormat.DECIMAL, text:"%1.",
+        alignment:AlignmentType.LEFT,
+        style:{ paragraph:{ indent:{ left:720, hanging:360 } } } }] },
+    ]
+  },
+  styles:{
+    default:{ document:{ run:{ font:"Calibri", size:20 } } },
+    paragraphStyles:[
+      { id:"Heading1", name:"Heading 1", basedOn:"Normal", next:"Normal", quickFormat:true,
+        run:{ size:30, bold:true, font:"Calibri", color:C.DARK_BLUE },
+        paragraph:{ spacing:{ before:300, after:120 }, outlineLevel:0 } },
+      { id:"Heading2", name:"Heading 2", basedOn:"Normal", next:"Normal", quickFormat:true,
+        run:{ size:26, bold:true, font:"Calibri", color:C.MID_BLUE },
+        paragraph:{ spacing:{ before:240, after:100 }, outlineLevel:1 } },
+    ]
+  },
+  sections:[{
+    properties:{ page:{
+      size:{ width:11906, height:16838 },
+      margin:{ top:1008, right:1008, bottom:1008, left:1008 }
+    }},
+    headers:{ default: new Header({ children:[
+      new Paragraph({ alignment:AlignmentType.RIGHT, children:[
+        new TextRun({ text:"Junior Kwinda | Gr 12 CAT PAT 2026 | Excel Guide", size:16, color:"888888", font:"Calibri" })
+      ]})
+    ]})},
+    footers:{ default: new Footer({ children:[
+      new Paragraph({ alignment:AlignmentType.CENTER, children:[
+        new TextRun({ text:"Page ", size:16, color:"888888", font:"Calibri" }),
+        new TextRun({ children:[PageNumber.CURRENT], size:16, color:"888888" }),
+        new TextRun({ text:" of ", size:16, color:"888888", font:"Calibri" }),
+        new TextRun({ children:[PageNumber.TOTAL_PAGES], size:16, color:"888888" }),
+      ]})
+    ]})},
+    children
+  }]
+});
+
+Packer.toBuffer(doc).then(buf => {
+  fs.writeFileSync('/home/claude/Excel_Guide.docx', buf);
+  console.log('Done');
+});
+JSEOF
+node /home/claude/build_excel_guide.js
+Output
+
+Done
