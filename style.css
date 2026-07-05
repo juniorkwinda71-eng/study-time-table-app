@@ -1,0 +1,569 @@
+/* ===========================
+   GOOGLE FONTS & RESET
+=========================== */
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html{
+    scroll-behavior:smooth;
+}
+
+body{
+
+    font-family:'Poppins',sans-serif;
+
+    height:100vh;
+
+    overflow:hidden;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    background:
+    radial-gradient(circle at top,#ff7aa8 0%,#8b0015 35%,#200005 70%,#000 100%);
+
+}
+
+/* ===========================
+        BACKGROUND
+=========================== */
+
+.background-hearts{
+
+    position:fixed;
+
+    width:100%;
+    height:100%;
+
+    overflow:hidden;
+
+    z-index:0;
+
+}
+
+.background-hearts span{
+
+    position:absolute;
+
+    bottom:-120px;
+
+    width:18px;
+    height:18px;
+
+    background:rgba(255,255,255,.08);
+
+    transform:rotate(45deg);
+
+    animation:float 18s linear infinite;
+
+    border-radius:3px;
+
+}
+
+.background-hearts span:nth-child(1){
+
+left:10%;
+animation-delay:0s;
+
+}
+
+.background-hearts span:nth-child(2){
+
+left:28%;
+animation-delay:4s;
+
+}
+
+.background-hearts span:nth-child(3){
+
+left:52%;
+animation-delay:8s;
+
+}
+
+.background-hearts span:nth-child(4){
+
+left:74%;
+animation-delay:12s;
+
+}
+
+.background-hearts span:nth-child(5){
+
+left:90%;
+animation-delay:15s;
+
+}
+
+@keyframes float{
+
+0%{
+
+transform:translateY(0) rotate(45deg);
+
+opacity:0;
+
+}
+
+20%{
+
+opacity:.3;
+
+}
+
+100%{
+
+transform:translateY(-120vh) rotate(405deg);
+
+opacity:0;
+
+}
+
+}
+
+/* ===========================
+          SCENE
+=========================== */
+
+.scene{
+
+perspective:2500px;
+
+z-index:2;
+
+}
+
+/* ===========================
+          DIARY
+=========================== */
+
+.diary{
+
+position:relative;
+
+width:360px;
+
+height:620px;
+
+border-radius:18px;
+
+background:
+linear-gradient(rgba(0,0,0,.25),rgba(0,0,0,.25)),
+url("assets/images/leather.jpg");
+
+background-size:cover;
+
+background-position:center;
+
+box-shadow:
+
+0 40px 80px rgba(0,0,0,.75),
+
+0 0 80px rgba(255,40,90,.35);
+
+transition:.9s;
+
+overflow:hidden;
+
+transform-style:preserve-3d;
+
+cursor:pointer;
+
+}
+
+/* Hover */
+
+.diary:hover{
+
+transform:
+
+rotateY(-8deg)
+
+rotateX(3deg)
+
+scale(1.02);
+
+}
+
+/* ===========================
+      GOLD BORDER
+=========================== */
+
+.gold-border{
+
+position:absolute;
+
+inset:18px;
+
+border:2px solid #d4af37;
+
+border-radius:12px;
+
+box-shadow:
+
+0 0 10px rgba(212,175,55,.6),
+
+inset 0 0 12px rgba(212,175,55,.2);
+
+}
+
+/* ===========================
+      GOLD CORNERS
+=========================== */
+
+.corner{
+
+position:absolute;
+
+width:55px;
+
+height:55px;
+
+border:3px solid #d4af37;
+
+}
+
+.top-left{
+
+top:12px;
+left:12px;
+
+border-right:none;
+border-bottom:none;
+
+}
+
+.top-right{
+
+top:12px;
+right:12px;
+
+border-left:none;
+border-bottom:none;
+
+}
+
+.bottom-left{
+
+bottom:12px;
+left:12px;
+
+border-right:none;
+border-top:none;
+
+}
+
+.bottom-right{
+
+bottom:12px;
+right:12px;
+
+border-left:none;
+border-top:none;
+
+}
+
+/* ===========================
+        LIGHT EFFECT
+=========================== */
+
+.cover-light{
+
+position:absolute;
+
+top:-30%;
+
+left:-20%;
+
+width:250px;
+
+height:900px;
+
+background:linear-gradient(
+
+90deg,
+
+transparent,
+
+rgba(255,255,255,.08),
+
+transparent
+
+);
+
+transform:rotate(-25deg);
+
+animation:shine 7s infinite;
+
+}
+
+@keyframes shine{
+
+0%{
+
+left:-60%;
+
+}
+
+100%{
+
+left:130%;
+
+}
+
+}
+
+/* ===========================
+      CONTENT
+=========================== */
+
+.cover-content{
+
+height:100%;
+
+display:flex;
+
+flex-direction:column;
+
+justify-content:center;
+
+align-items:center;
+
+padding:40px;
+
+text-align:center;
+
+color:white;
+
+z-index:10;
+
+position:relative;
+
+}
+
+.small-title{
+
+font-size:20px;
+
+font-family:"Playfair Display";
+
+letter-spacing:4px;
+
+color:#ffd7ef;
+
+margin-bottom:25px;
+
+}
+
+/* ANGEL */
+
+.angel{
+
+font-family:"Great Vibes",cursive;
+
+font-size:88px;
+
+color:#ffd86c;
+
+text-shadow:
+
+0 0 10px rgba(255,215,0,.6),
+
+0 0 20px rgba(255,215,0,.4),
+
+0 0 35px rgba(255,215,0,.3);
+
+margin-bottom:10px;
+
+}
+
+/* Smart Diary */
+
+.smart{
+
+font-size:22px;
+
+letter-spacing:5px;
+
+text-transform:uppercase;
+
+color:white;
+
+margin-bottom:35px;
+
+}
+
+/* Divider */
+
+.line{
+
+width:180px;
+
+height:2px;
+
+background:#d4af37;
+
+margin-bottom:35px;
+
+box-shadow:0 0 12px gold;
+
+}
+
+/* Verse */
+
+.verse{
+
+font-style:italic;
+
+font-size:15px;
+
+line-height:28px;
+
+color:#ffeef6;
+
+margin-bottom:14px;
+
+}
+
+.reference{
+
+font-family:"Playfair Display";
+
+font-size:18px;
+
+color:#ffd86c;
+
+margin-bottom:55px;
+
+}
+
+/* BUTTON */
+
+button{
+
+padding:18px 45px;
+
+border:none;
+
+border-radius:50px;
+
+background:linear-gradient(135deg,#ff5b88,#b6002d);
+
+color:white;
+
+font-size:18px;
+
+font-weight:600;
+
+cursor:pointer;
+
+transition:.4s;
+
+box-shadow:
+
+0 15px 35px rgba(0,0,0,.45),
+
+0 0 20px rgba(255,50,100,.45);
+
+}
+
+button:hover{
+
+transform:translateY(-6px) scale(1.05);
+
+box-shadow:
+
+0 25px 45px rgba(0,0,0,.55),
+
+0 0 30px rgba(255,90,120,.8);
+
+}
+
+button i{
+
+margin-right:10px;
+
+}
+
+/* ===========================
+    PAGE TRANSITION
+=========================== */
+
+.transition{
+
+position:fixed;
+
+inset:0;
+
+background:#000;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+opacity:0;
+
+visibility:hidden;
+
+z-index:999;
+
+}
+
+.page{
+
+position:absolute;
+
+width:100%;
+
+height:100%;
+
+background:white;
+
+transform-origin:left;
+
+transform:rotateY(90deg);
+
+}
+
+/* ===========================
+       RESPONSIVE
+=========================== */
+
+@media(max-width:450px){
+
+.diary{
+
+width:92vw;
+
+height:88vh;
+
+}
+
+.angel{
+
+font-size:72px;
+
+}
+
+.smart{
+
+font-size:18px;
+
+}
+
+button{
+
+width:90%;
+
+}
+
+}

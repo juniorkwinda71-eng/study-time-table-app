@@ -1,0 +1,219 @@
+/* =========================
+   GLOBAL RESET
+========================= */
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'Poppins',sans-serif;
+    background:linear-gradient(135deg,#1a0005,#3a0010,#000);
+    height:100vh;
+    overflow:hidden;
+    color:white;
+}
+
+/* =========================
+        APP LAYOUT
+========================= */
+
+.app{
+    display:flex;
+    height:100vh;
+}
+
+/* =========================
+        SIDEBAR
+========================= */
+
+.sidebar{
+    width:260px;
+    background:rgba(0,0,0,0.55);
+    backdrop-filter:blur(20px);
+    padding:30px 20px;
+    border-right:1px solid rgba(255,255,255,0.1);
+}
+
+.logo{
+    font-family:'Playfair Display',serif;
+    font-size:36px;
+    color:#ffd86c;
+    text-align:center;
+    letter-spacing:3px;
+}
+
+.tag{
+    text-align:center;
+    font-size:14px;
+    color:#ffb6c1;
+    margin-bottom:40px;
+}
+
+.menu{
+    display:flex;
+    flex-direction:column;
+    gap:15px;
+}
+
+.menu button{
+    background:transparent;
+    border:none;
+    color:white;
+    font-size:15px;
+    text-align:left;
+    padding:12px 15px;
+    border-radius:12px;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.menu button i{
+    margin-right:10px;
+    color:#ff4f81;
+}
+
+.menu button:hover,
+.menu button.active{
+    background:linear-gradient(135deg,#ff4f81,#8b0015);
+    transform:translateX(5px);
+}
+
+/* =========================
+        MAIN AREA
+========================= */
+
+.main{
+    flex:1;
+    padding:30px;
+    overflow-y:auto;
+}
+
+/* HEADER */
+
+.header h2{
+    font-size:28px;
+    margin-bottom:5px;
+}
+
+.header p{
+    color:#ffb6c1;
+    font-size:14px;
+}
+
+/* =========================
+        CARDS
+========================= */
+
+.cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:20px;
+    margin-top:25px;
+}
+
+.card{
+    background:rgba(255,255,255,0.06);
+    backdrop-filter:blur(15px);
+    padding:20px;
+    border-radius:18px;
+    border:1px solid rgba(255,255,255,0.1);
+    transition:0.3s;
+    cursor:pointer;
+}
+
+.card i{
+    font-size:24px;
+    color:#ffd86c;
+    margin-bottom:10px;
+}
+
+.card h3{
+    font-size:18px;
+    margin-bottom:5px;
+}
+
+.card p{
+    font-size:13px;
+    color:#ffb6c1;
+}
+
+.card:hover{
+    transform:translateY(-8px);
+    background:rgba(255,255,255,0.1);
+}
+
+/* =========================
+        ENTRY BOX
+========================= */
+
+.entry-box{
+    margin-top:30px;
+    background:rgba(255,255,255,0.06);
+    padding:20px;
+    border-radius:18px;
+    border:1px solid rgba(255,255,255,0.1);
+    backdrop-filter:blur(15px);
+}
+
+.entry-box h3{
+    margin-bottom:10px;
+    color:#ffd86c;
+}
+
+textarea{
+    width:100%;
+    height:150px;
+    border:none;
+    border-radius:12px;
+    padding:15px;
+    outline:none;
+    resize:none;
+    font-size:14px;
+    background:rgba(0,0,0,0.3);
+    color:white;
+    border:1px solid rgba(255,255,255,0.1);
+}
+
+.entry-box button{
+    margin-top:10px;
+    padding:12px 25px;
+    border:none;
+    border-radius:25px;
+    background:linear-gradient(135deg,#ff4f81,#8b0015);
+    color:white;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.entry-box button:hover{
+    transform:scale(1.05);
+}
+
+/* =========================
+      RESPONSIVE
+========================= */
+
+@media(max-width:768px){
+
+.sidebar{
+    width:80px;
+}
+
+.logo,.tag{
+    display:none;
+}
+
+.menu button{
+    font-size:0;
+    justify-content:center;
+}
+
+.menu button i{
+    font-size:18px;
+    margin:0;
+}
+
+}
